@@ -10,6 +10,7 @@ class Country:
         # when -1 no empire, if the country is empire than it is same as the name
         self.name = name
         self.norm_imperialist_power = 0
+        self.vassals = None
 
     def evaluate_fitness(self, objective_function):
         self.fitness = objective_function(self.location)
@@ -41,7 +42,7 @@ class ImperialistCompetitiveAlgorithm:
                 empire.fitness / numpy.sum([empire.fitness for empire in empires]))
         return empires
 
-    def create_colonies(self, empires):
+    def create_colonies(self, empires: list[Country]):
         colonies = self.population[len(empires):]
         colonies_in_empires = [numpy.floor(empire.norm_imperialist_power * len(colonies)) for empire in empires]
         if numpy.sum(colonies_in_empires) < self.population_size:
@@ -58,10 +59,11 @@ class ImperialistCompetitiveAlgorithm:
             temp = numpy.random.choice(len(list_of_index), colonies_in_empires[i])
             for j in range(colonies_in_empires[i]):
                 colonies[list_of_index[temp[i]]].vassal_of_empire = empires[i].name
+                empires[i].vassals.append(colonies[list_of_index[temp[i]]])
             del list_of_index[temp]
         return colonies
 
-    def assimilation(self, empires, colonies, beta=2):
+    def assimilation(self, empires: Country, colonies: Country, beta=2):
         for colony in colonies:
             d = numpy.linalg.norm(self.population[colony.vassal_of_empire].location - colony.location)
             shift = numpy.random.uniform(low=0, high=beta * d, size=1)
@@ -74,7 +76,15 @@ class ImperialistCompetitiveAlgorithm:
         for country in self.population:
             country.location += numpy.random.uniform(low=-gamma, high=gamma, size=self.dimension)
 
-
+    def mutiny(self, empires: Country, colonies: Country):
+        for colony in colonies:
+            nearest_imperialist = min(empires, key=lambda x: numpy.linalg.norm(x.location - colony.location))
+            if colony.fitness < nearest_imperialist.fitness:
+                colony.vassals = nearest_imperialist.vassals
+                nearest_imperialist.vassals = None
+                nearest_imperialist.vassal_of_empire = colony.name
+                nearest_imperialist = colony
+            colony.vassal_of_empire = nearest_imperialist.name
 
     def optimize(self, lb, ub):
         empires = self.create_empires()
@@ -88,12 +98,6 @@ class ImperialistCompetitiveAlgorithm:
 
             self.fitness_history.append(self.best_fitness)
             self.population.sort(key=lambda x: x.fitness)
-
-            for colony in colonies:
-                nearest_imperialist = min(empires, key=lambda x: numpy.linalg.norm(x.location - colony.location))
-                if colony.fitness < nearest_imperialist.fitness:
-                    nearest_imperialist = colony
-                colony.vassal_of_empire = nearest_imperialist.name
 
             for colony in colonies:
                 if numpy.random.rand() < 0.05:
