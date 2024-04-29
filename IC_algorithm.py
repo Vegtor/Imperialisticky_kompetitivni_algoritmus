@@ -34,7 +34,7 @@ class Country:
         vassal.vassal_of_empire = self.index_in_list
 
 
-class ImperialistCompetitiveAlgorithm:
+class Imperialist_competitive_algorithm:
     def __init__(self, population_size: int, dimension: int, max_iter: int, objective_function):
         self.population_size = population_size
         self.dimension = dimension
