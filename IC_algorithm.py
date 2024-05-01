@@ -1,5 +1,8 @@
+import string
+
 import numpy
 import random
+
 
 def rastrigin(x):
     a = 10
@@ -9,8 +12,8 @@ def rastrigin(x):
 class Country:
     def __init__(self, location):
         self.location = location
-        self.fitness = None
-        self.vassal_of_empire = -1
+        self.fitness = float('-inf')
+        self.vassal_of_empire = None
         # when -1 no empire, if the country is empire than it is same as the name
         self.index_in_list = -1
         self.norm_imperialist_power = 0
@@ -31,7 +34,9 @@ class Country:
 
     def add_vassal(self, vassal: "Country"):
         self.vassals.append(vassal)
-        vassal.vassal_of_empire = self.index_in_list
+
+    def add_emperor(self, emperor: "Country"):
+        self.vassal_of_empire = emperor
 
 
 class Imperialist_competitive_algorithm:
@@ -45,6 +50,7 @@ class Imperialist_competitive_algorithm:
         self.best_solution = None
         self.best_fitness = float('inf')
         self.fitness_history = []
+        self.colours = []
 
     def create_empires(self):
         n_empire = int(0.1 * self.population_size)
@@ -74,18 +80,20 @@ class Imperialist_competitive_algorithm:
             temp.sort(reverse=True)
             for j in range(int(colonies_in_empires[i])):
                 empires[i].add_vassal(colonies[list_of_index[temp[i]]])
+                colonies[list_of_index[temp[i]]].add_emperor(empires[i])
             for k in range(len(temp)):
                 del list_of_index[temp[k]]
         return colonies
 
     def assimilation(self, empires: list[Country], colonies: list[Country], beta=2):
         for colony in colonies:
-            distance = numpy.linalg.norm([empires[colony.vassal_of_empire].location[i] - colony.location[i] for i in range(self.dimension)])
+            distance = numpy.linalg.norm(
+                [colony.vassal_of_empire.location[i] - colony.location[i] for i in range(self.dimension)])
             shift = numpy.random.uniform(low=0, high=beta * distance, size=1)
-            new_location = []
+            new_location = numpy.zeros(self.dimension)
             for i in range(self.dimension):
                 new_location[i] = colony.location[i] + shift * (
-                            empires[colony.vassal_of_empire].location - colony.location[i]) / distance
+                        colony.vassal_of_empire.location[i] - colony.location[i]) / distance
             colony.location = numpy.copy(new_location)
 
     def revolution(self, colonies: list[Country], gamma=numpy.pi / 4):
@@ -101,7 +109,8 @@ class Imperialist_competitive_algorithm:
                 nearest_imperialist.vassal_of_empire = colony.vassal_of_empire
                 empires[nearest_imperialist.index_in_list] = colony
                 colony.index_in_list = nearest_imperialist.index_in_list
-                nearest_imperialist = -1
+                colonies[colonies.index(colony)] = nearest_imperialist
+                nearest_imperialist = None
             colony.vassal_of_empire = nearest_imperialist
 
     def empirial_war(self, empires: list[Country], eta=0.1):
@@ -122,11 +131,16 @@ class Imperialist_competitive_algorithm:
         possession_probability = [numpy.round(normalized_total_power[i] / temp_sum) for i in range(num_of_empires)]
         random_numbers = numpy.random.uniform(low=0, high=1, size=len(empires))
         D = [possession_probability[i] - random_numbers[i] for i in range(num_of_empires)]
-        weakest_empire = D.index(numpy.min(D))
-        strongest_empire = D.index(numpy.max(D))
-        empires[strongest_empire].add_vassal(empires[weakest_empire].weakest_vassal_removal())
-        if len(empires[weakest_empire].vassals) == 0:
-            empires[strongest_empire].add_vassal(empires[weakest_empire])
+        weakest_empire_index = D.index(numpy.min(D))
+        strongest_empire_index = D.index(numpy.max(D))
+        if len(empires[weakest_empire_index].vassals) != 0:
+            weakest_vassal = empires[weakest_empire_index].weakest_vassal_removal()
+            empires[strongest_empire_index].add_vassal(weakest_vassal)
+            weakest_vassal.add_emperor(empires[strongest_empire_index])
+        if len(empires[weakest_empire_index].vassals) == 0:
+            empires[strongest_empire_index].add_vassal(empires[weakest_empire_index])
+            empires[weakest_empire_index].add_emperor(empires[strongest_empire_index])
+            del empires[weakest_empire_index]
 
     def calculate_fitness(self):
         for country in self.population:
@@ -135,15 +149,25 @@ class Imperialist_competitive_algorithm:
                 self.best_solution = country.location
                 self.best_fitness = country.fitness
 
+    def print_number_of_vassals(self, empires: list[Country]):
+        for i in range(len(empires)):
+            temp = "Number of vassals in empire " + str(i) + " is " + str(len(empires[i].vassals))
+            print(temp)
+
     def optimize(self, lb: int, ub: int):
         self.calculate_fitness()
         self.population.sort(key=lambda x: x.fitness)
         empires = self.create_empires()
         colonies = self.create_colonies(empires)
-        for _ in range(self.max_iter):
+        for i in range(self.max_iter):
+            print("#############Start of " + str(i) + ". iteration. ########################################")
             self.calculate_fitness()
             self.fitness_history.append(self.best_fitness)
             self.assimilation(empires, colonies)
             self.revolution(colonies)
             self.mutiny(empires, colonies)
             self.empirial_war(empires)
+            self.print_number_of_vassals(empires)
+            print("########################################################################################")
+            if len(empires) == 1:
+                break
