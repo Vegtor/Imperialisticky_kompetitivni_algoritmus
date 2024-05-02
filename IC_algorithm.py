@@ -79,8 +79,8 @@ class Imperialist_competitive_algorithm:
             temp = random.sample(range(int(len(list_of_index))), int(colonies_in_empires[i]))
             temp.sort(reverse=True)
             for j in range(int(colonies_in_empires[i])):
-                empires[i].add_vassal(colonies[list_of_index[temp[i]]])
-                colonies[list_of_index[temp[i]]].add_emperor(empires[i])
+                empires[i].vassals.append(colonies[list_of_index[temp[j]]])
+                colonies[list_of_index[temp[j]]].vassal_of_empire = empires[i]
             for k in range(len(temp)):
                 del list_of_index[temp[k]]
         return colonies
@@ -106,14 +106,14 @@ class Imperialist_competitive_algorithm:
             if colony.fitness < nearest_imperialist.fitness:
                 colony.vassals = nearest_imperialist.vassals
                 nearest_imperialist.vassals = None
-                nearest_imperialist.vassal_of_empire = colony.vassal_of_empire
+                nearest_imperialist.vassal_of_empire = colony
                 empires[nearest_imperialist.index_in_list] = colony
                 colony.index_in_list = nearest_imperialist.index_in_list
                 colonies[colonies.index(colony)] = nearest_imperialist
                 nearest_imperialist = None
             colony.vassal_of_empire = nearest_imperialist
 
-    def empirial_war(self, empires: list[Country], eta=0.1):
+    def empirial_war(self, empires: list[Country], colonies, eta=0.1):
         total_power = 0
         powers_of_empire = []
         normalized_total_power = []
@@ -135,11 +135,12 @@ class Imperialist_competitive_algorithm:
         strongest_empire_index = D.index(numpy.max(D))
         if len(empires[weakest_empire_index].vassals) != 0:
             weakest_vassal = empires[weakest_empire_index].weakest_vassal_removal()
-            empires[strongest_empire_index].add_vassal(weakest_vassal)
-            weakest_vassal.add_emperor(empires[strongest_empire_index])
+            empires[strongest_empire_index].vassals.append(weakest_vassal)
+            weakest_vassal.vassal_of_empire = empires[strongest_empire_index]
         if len(empires[weakest_empire_index].vassals) == 0:
-            empires[strongest_empire_index].add_vassal(empires[weakest_empire_index])
-            empires[weakest_empire_index].add_emperor(empires[strongest_empire_index])
+            empires[strongest_empire_index].vassals.append(empires[weakest_empire_index])
+            empires[weakest_empire_index].vassal_of_empire = empires[strongest_empire_index]
+            colonies.append(empires[weakest_empire_index])
             del empires[weakest_empire_index]
 
     def calculate_fitness(self):
@@ -166,7 +167,7 @@ class Imperialist_competitive_algorithm:
             self.assimilation(empires, colonies)
             self.revolution(colonies)
             self.mutiny(empires, colonies)
-            self.empirial_war(empires)
+            self.empirial_war(empires, colonies)
             self.print_number_of_vassals(empires)
             print("########################################################################################")
             if len(empires) == 1:
