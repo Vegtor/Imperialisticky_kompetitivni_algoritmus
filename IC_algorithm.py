@@ -159,8 +159,7 @@ class Imperialist_competitive_algorithm:
             temp = "Number of vassals in empire " + str(i) + " is " + str(len(empires[i].vassals))
             print(temp)
 
-
-    def optimize(self, lb: int, ub: int):
+    def optimize(self, lb: int, ub: int, beta, gamma, eta):
         self.calculate_fitness()
         self.population.sort(key=lambda x: x.fitness)
         empires = self.create_empires()
@@ -169,10 +168,10 @@ class Imperialist_competitive_algorithm:
             print("#############Start of " + str(i) + ". iteration. ########################################")
             self.calculate_fitness()
             self.fitness_history.append(self.best_fitness)
-            self.assimilation(empires, colonies)
-            self.revolution(colonies)
+            self.assimilation(empires, colonies, beta)
+            self.revolution(colonies, gamma)
             self.mutiny(empires, colonies)
-            self.empirial_war(empires, colonies)
+            self.empirial_war(empires, colonies, eta)
             self.print_number_of_vassals(empires)
             print("########################################################################################")
             if len(empires) == 1:
