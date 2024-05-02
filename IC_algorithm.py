@@ -56,7 +56,7 @@ class Imperialist_competitive_algorithm:
         n_empire = int(0.1 * self.population_size)
         empires = self.population[:n_empire]
         for i in range(n_empire):
-            empires[i].index_in_list = i - 1
+            empires[i].index_in_list = i
         for empire in empires:
             empire.norm_imperialist_power = numpy.abs(
                 empire.fitness / numpy.sum([empire.fitness for empire in empires]))
@@ -110,10 +110,10 @@ class Imperialist_competitive_algorithm:
                 colony.vassals = nearest_imperialist.vassals
                 nearest_imperialist.vassal_of_empire = colony
                 empires[nearest_imperialist.index_in_list] = colony
-                colony.index_in_list = nearest_imperialist.index_in_list
+                colony.index_in_list = numpy.copy(nearest_imperialist.index_in_list)
                 colonies[colonies.index(colony)] = nearest_imperialist
-                nearest_imperialist = None
-            colony.vassal_of_empire = nearest_imperialist
+            else:
+                colony.vassal_of_empire = nearest_imperialist
 
     def empirial_war(self, empires: list[Country], colonies, eta=0.1):
         total_power = 0
@@ -143,9 +143,9 @@ class Imperialist_competitive_algorithm:
             empires[strongest_empire_index].vassals.append(empires[weakest_empire_index])
             empires[weakest_empire_index].vassal_of_empire = empires[strongest_empire_index]
             colonies.append(empires[weakest_empire_index])
-            for i in range(weakest_empire_index+1, len(empires)):
+            for i in range(weakest_empire_index, len(empires)):
                 empires[i].index_in_list -= 1
-            del empires[weakest_empire_index]
+            empires.pop(weakest_empire_index)
 
     def calculate_fitness(self):
         for country in self.population:
@@ -158,6 +158,7 @@ class Imperialist_competitive_algorithm:
         for i in range(len(empires)):
             temp = "Number of vassals in empire " + str(i) + " is " + str(len(empires[i].vassals))
             print(temp)
+
 
     def optimize(self, lb: int, ub: int):
         self.calculate_fitness()
