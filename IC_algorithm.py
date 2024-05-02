@@ -56,7 +56,7 @@ class Imperialist_competitive_algorithm:
         n_empire = int(0.1 * self.population_size)
         empires = self.population[:n_empire]
         for i in range(n_empire):
-            empires[i].index_in_list = i
+            empires[i].index_in_list = i - 1
         for empire in empires:
             empire.norm_imperialist_power = numpy.abs(
                 empire.fitness / numpy.sum([empire.fitness for empire in empires]))
@@ -91,9 +91,12 @@ class Imperialist_competitive_algorithm:
                 [colony.vassal_of_empire.location[i] - colony.location[i] for i in range(self.dimension)])
             shift = numpy.random.uniform(low=0, high=beta * distance, size=1)
             new_location = numpy.zeros(self.dimension)
-            for i in range(self.dimension):
-                new_location[i] = colony.location[i] + shift * (
-                        colony.vassal_of_empire.location[i] - colony.location[i]) / distance
+            if distance != 0:
+                for i in range(self.dimension):
+                    new_location[i] = colony.location[i] + shift * (
+                            colony.vassal_of_empire.location[i] - colony.location[i]) / distance
+            else:
+                new_location = colony.location
             colony.location = numpy.copy(new_location)
 
     def revolution(self, colonies: list[Country], gamma=numpy.pi / 4):
@@ -105,7 +108,6 @@ class Imperialist_competitive_algorithm:
             nearest_imperialist = min(empires, key=lambda x: numpy.linalg.norm(x.location - colony.location))
             if colony.fitness < nearest_imperialist.fitness:
                 colony.vassals = nearest_imperialist.vassals
-                nearest_imperialist.vassals = None
                 nearest_imperialist.vassal_of_empire = colony
                 empires[nearest_imperialist.index_in_list] = colony
                 colony.index_in_list = nearest_imperialist.index_in_list
@@ -141,6 +143,8 @@ class Imperialist_competitive_algorithm:
             empires[strongest_empire_index].vassals.append(empires[weakest_empire_index])
             empires[weakest_empire_index].vassal_of_empire = empires[strongest_empire_index]
             colonies.append(empires[weakest_empire_index])
+            for i in range(weakest_empire_index+1, len(empires)):
+                empires[i].index_in_list -= 1
             del empires[weakest_empire_index]
 
     def calculate_fitness(self):
