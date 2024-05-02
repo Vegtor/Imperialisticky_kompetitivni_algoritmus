@@ -173,6 +173,7 @@ class Imperialist_competitive_algorithm:
             self.mutiny(empires, colonies)
             self.empirial_war(empires, colonies, eta)
             self.print_number_of_vassals(empires)
-            print("########################################################################################")
+            print("#####################################################################################")
             if len(empires) == 1:
+                self.calculate_fitness()
                 break
