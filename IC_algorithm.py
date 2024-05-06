@@ -1,5 +1,5 @@
-import string
-
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import numpy
 import random
 
@@ -18,6 +18,7 @@ class Country:
         self.index_in_list = -1
         self.norm_imperialist_power = 0
         self.vassals = []
+        self.colour = None
 
     def evaluate_fitness(self, objective_function):
         self.fitness = objective_function(self.location)
@@ -52,9 +53,19 @@ class Imperialist_competitive_algorithm:
         self.fitness_history = []
         self.colours = []
 
+    def random_colours(self, n_empire):
+        res = []
+        for i in range(n_empire):
+            r = numpy.random.rand()
+            g = numpy.random.rand()
+            b = numpy.random.rand()
+            res.append((r, g, b))
+        return res
+
     def create_empires(self):
         n_empire = int(0.1 * self.population_size)
         empires = self.population[:n_empire]
+        self.random_colours(n_empire)
         for i in range(n_empire):
             empires[i].index_in_list = i
         for empire in empires:
@@ -135,6 +146,11 @@ class Imperialist_competitive_algorithm:
         D = [possession_probability[i] - random_numbers[i] for i in range(num_of_empires)]
         weakest_empire_index = D.index(numpy.min(D))
         strongest_empire_index = D.index(numpy.max(D))
+        # if len(empires[weakest_empire_index].vassals) != delta:
+        # for _ in empires[weakest_empire_index].vassals:
+        # weakest_vassal = empires[weakest_empire_index].weakest_vassal_removal()
+        # empires[strongest_empire_index].vassals.append(weakest_vassal)
+        # weakest_vassal.vassal_of_empire = empires[strongest_empire_index]
         if len(empires[weakest_empire_index].vassals) != 0:
             weakest_vassal = empires[weakest_empire_index].weakest_vassal_removal()
             empires[strongest_empire_index].vassals.append(weakest_vassal)
@@ -158,6 +174,46 @@ class Imperialist_competitive_algorithm:
         for i in range(len(empires)):
             temp = "Number of vassals in empire " + str(i) + " is " + str(len(empires[i].vassals))
             print(temp)
+
+    def animation(self, fig, ax, empires, colonies, old_empires, old_colonies):
+        diff_empires = numpy.zeros([len(empires), len(empires)])
+        diff_colonies = numpy.zeros([len(colonies), len(colonies)])
+        for dimension_idx in range(self.dimension):
+            for empire_idx in range(len(empires)):
+                diff_empires[empire_idx, dimension_idx] = numpy.abs(
+                    empires[empire_idx].location[dimension_idx] - old_empires[empire_idx].location[dimension_idx])
+            for colony_idx in range(len(colonies)):
+                diff_colonies[colony_idx, dimension_idx] = numpy.abs(
+                    colonies[colony_idx].location[dimension_idx] - old_colonies[colony_idx].location[dimension_idx])
+
+        def update_locations(frame):
+            ax.clear()
+            new_locations_empires = numpy.zeros([len(empires), len(empires)])
+            new_locations_colonies = numpy.zeros([len(colonies), len(colonies)])
+            for i in range(self.dimension):
+                for j in range(len(empires)):
+                    new_locations_empires[i, j] = empires[j].location[i] + frame * diff_empires[i, j]
+                for j in range(len(colonies)):
+                    new_locations_colonies[i, j] = colonies[j].location[i] + frame * diff_colonies[i, j]
+            ax.scatter([new_locations_empires[0, j] for j in range(len(empires))],
+                       [new_locations_empires[1, j] for j in range(len(empires))], marker="s")
+            ax.scatter([new_locations_colonies[0, j] for j in range(len(colonies))],
+                       [new_locations_colonies[1, j] for j in range(len(colonies))])
+            return fig
+
+        ani = FuncAnimation(fig, update_locations, frames=numpy.arange(0, 100), interval=200)
+        plt.show()
+
+    def setup_plot(self, empires, colonies, ax):
+        locations_empires = numpy.zeros([len(empires), len(empires)])
+        locations_colonies = numpy.zeros([len(colonies), len(colonies)])
+        for i in range(self.dimension):
+            for j in range(len(empires)):
+                locations_empires[i, j] = empires[j].location[i]
+            for j in range(len(colonies)):
+                locations_colonies[i, j] = colonies[j].location[i]
+        ax.scatter(locations_empires[0], locations_empires[1], marker="s", c=[empire.colour for empire in empires])
+        ax.scatter(locations_colonies[0], locations_colonies[1], c=[colony.colour for colony in colonies])
 
     def optimize(self, lb: int, ub: int, beta, gamma, eta):
         self.calculate_fitness()
