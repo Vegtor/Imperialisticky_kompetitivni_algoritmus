@@ -50,8 +50,7 @@ class Imperialist_competitive_algorithm:
         self.dimension = dimension
         self.max_iter = max_iter
         self.objective_function = objective_function
-        self.population = [Country(numpy.random.uniform(low=-5.12, high=5.12, size=dimension)) for i in
-                           range(population_size)]
+        self.population = []
         self.best_solution = None
         self.best_fitness = float('inf')
         self.fitness_history = []
@@ -73,15 +72,16 @@ class Imperialist_competitive_algorithm:
         self.empires = self.population[:n_empire]
         self.colours = self.random_colours(n_empire)
         for i in range(n_empire):
-              self.empires[i].index_in_list = i
-              self.empires[i].colour = self.colours[i]
+            self.empires[i].index_in_list = i
+            self.empires[i].colour = numpy.copy(self.colours[i])
         for empire in self.empires:
             empire.norm_imperialist_power = numpy.abs(
                 empire.fitness / numpy.sum([empire.fitness for empire in self.empires]))
 
     def create_colonies(self):
         self.colonies = self.population[len(self.empires):]
-        colonies_in_empires = [numpy.floor(empire.norm_imperialist_power * len(self.colonies)) for empire in self.empires]
+        colonies_in_empires = [numpy.floor(empire.norm_imperialist_power * len(self.colonies)) for empire in
+                               self.empires]
         if numpy.sum(colonies_in_empires) < self.population_size:
             diff = len(self.colonies) - numpy.sum(colonies_in_empires)
             i = 0
@@ -97,8 +97,8 @@ class Imperialist_competitive_algorithm:
             temp.sort(reverse=True)
             for j in range(int(colonies_in_empires[i])):
                 self.empires[i].vassals.append(self.colonies[list_of_index[temp[j]]])
-                self.colonies[list_of_index[temp[j]]].vassal_of_empire =   self.empires[i]
-                self.colonies[list_of_index[temp[j]]].colour =   self.empires[i].colour
+                self.colonies[list_of_index[temp[j]]].vassal_of_empire = self.empires[i]
+                self.colonies[list_of_index[temp[j]]].colour = numpy.copy(self.empires[i].colour)
             for k in range(len(temp)):
                 del list_of_index[temp[k]]
 
@@ -124,6 +124,7 @@ class Imperialist_competitive_algorithm:
         for colony in self.colonies:
             nearest_imperialist = min(self.empires, key=lambda x: numpy.linalg.norm(x.location - colony.location))
             if colony.fitness < nearest_imperialist.fitness:
+                colony.colour = numpy.copy(nearest_imperialist.colour)
                 colony.vassals = nearest_imperialist.vassals
                 nearest_imperialist.vassal_of_empire = colony
                 self.empires[nearest_imperialist.index_in_list] = colony
@@ -159,17 +160,18 @@ class Imperialist_competitive_algorithm:
         # weakest_vassal.vassal_of_empire =   self.empires[strongest_empire_index]
         if len(self.empires[weakest_empire_index].vassals) != 0:
             weakest_vassal = self.empires[weakest_empire_index].weakest_vassal_removal()
+            weakest_vassal.colour = numpy.copy(self.empires[strongest_empire_index].colour)
             self.empires[strongest_empire_index].vassals.append(weakest_vassal)
             weakest_vassal.vassal_of_empire = self.empires[strongest_empire_index]
-            weakest_vassal.colour = self.empires[strongest_empire_index].colour
         if len(self.empires[weakest_empire_index].vassals) == 0:
+            self.empires[weakest_empire_index].colour = numpy.copy(self.empires[strongest_empire_index].colour)
             self.empires[strongest_empire_index].vassals.append(self.empires[weakest_empire_index])
             self.empires[weakest_empire_index].vassal_of_empire = self.empires[strongest_empire_index]
-            self.empires[weakest_empire_index].colour = self.empires[strongest_empire_index].colour
             self.colonies.append(self.empires[weakest_empire_index])
             for i in range(weakest_empire_index, len(self.empires)):
-              self.empires[i].index_in_list -= 1
-              self.empires.pop(weakest_empire_index)
+                print(i)
+                self.empires[i].index_in_list -= 1
+            self.empires.pop(weakest_empire_index)
 
     def calculate_fitness(self):
         for country in self.population:
@@ -186,6 +188,8 @@ class Imperialist_competitive_algorithm:
         print("Optimal value: " + str(self.best_fitness))
 
     def optimize(self, lb: int, ub: int, beta, gamma, eta):
+        self.population = [Country(numpy.random.uniform(low=lb, high=ub, size=self.dimension)) for i in
+                           range(self.population_size)]
         self.calculate_fitness()
         self.population.sort(key=lambda x: x.fitness)
         self.create_empires()
@@ -204,41 +208,7 @@ class Imperialist_competitive_algorithm:
                 self.calculate_fitness()
                 break
 
-    def animate_optimization(self):
-        fig, ax = plt.subplots()
-        self.calculate_fitness()
-        self.population.sort(key=lambda x: x.fitness)
-        self.create_empires()
-        self.create_colonies()
-
-        def update(frame):
-            ax.clear()
-            old_empires =   self.empires
-            old_colonies = self.colonies
-
-            # Run one iteration of optimization
-            if frame % 4 == 0:
-                self.assimilation()
-            elif frame % 4 == 1:
-                self.revolution()
-            elif frame % 4 == 2:
-                self.mutiny()
-            else:
-                self.empirial_war()
-
-            self.print_number_of_vassals()
-            self.calculate_fitness()
-            self.fitness_history.append(self.best_fitness)
-
-            # Plot   self.empires and self.colonies
-            self.setup_plot(ax)
-
-            return ax,
-
-        anim = FuncAnimation(fig, update, frames=range(self.max_iter), blit=True)
-        plt.show()
-
-    def setup_plot(self,  ax):
+    def setup_plot(self, ax):
         locations_empires = numpy.zeros([len(self.empires), self.dimension])
         locations_colonies = numpy.zeros([len(self.colonies), self.dimension])
         for i in range(self.dimension):
@@ -246,5 +216,35 @@ class Imperialist_competitive_algorithm:
                 locations_empires[j, i] = self.empires[j].location[i]
             for j in range(len(self.colonies)):
                 locations_colonies[j, i] = self.colonies[j].location[i]
-        ax.scatter(locations_empires[:, 0], locations_empires[:, 1], marker="s", c=[empire.colour for empire in self.empires])
-        ax.scatter(locations_colonies[:, 0], locations_colonies[:, 1], c=[colony.colour for colony in self.colonies])
+        ax.scatter(locations_empires[:, 1], locations_empires[:, 0], marker="s",
+                   c=[empire.colour for empire in self.empires])
+        ax.scatter(locations_colonies[:, 1], locations_colonies[:, 0], c=[colony.colour for colony in self.colonies])
+
+    def update(self, frame, ax, beta, gamma, eta):
+        ax.clear()
+        # old_empires = self.empires
+        # old_colonies = self.colonies
+        if frame % 2 == 0:
+            self.assimilation(beta)
+            self.revolution(gamma)
+            self.mutiny()
+        else:
+            self.empirial_war(eta)
+
+        self.print_number_of_vassals()
+        self.calculate_fitness()
+        self.fitness_history.append(self.best_fitness)
+        self.setup_plot(ax)
+        return ax,
+
+    def animate_optimization(self, lb: int, ub: int, beta, gamma, eta):
+        self.population = [Country(numpy.random.uniform(low=lb, high=ub, size=self.dimension)) for i in
+                           range(self.population_size)]
+        fig, ax = plt.subplots()
+        self.calculate_fitness()
+        self.population.sort(key=lambda x: x.fitness)
+        self.create_empires()
+        self.create_colonies()
+
+        anim = FuncAnimation(fig, self.update, frames=self.max_iter, interval=0.001, fargs=(ax, beta, gamma, eta))
+        plt.show()
