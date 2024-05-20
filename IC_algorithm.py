@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy
 import random
+import copy
 
 
 # matplotlib.use("TkAgg")
@@ -123,15 +124,22 @@ class Imperialist_competitive_algorithm:
     def mutiny(self):
         for colony in self.colonies:
             nearest_imperialist = min(self.empires, key=lambda x: numpy.linalg.norm(x.location - colony.location))
+            if colony.vassal_of_empire != nearest_imperialist:
+                temp_index = colony.vassal_of_empire.vassals.index(colony)
+                colony.vassal_of_empire.vassals = colony.vassal_of_empire.vassals[:temp_index] + colony.vassal_of_empire.vassals[(temp_index+1):]
+                #lepší způsob jak smazat pouze výskyt v seznamu a né ukazatale na objekt?
             if colony.fitness < nearest_imperialist.fitness:
                 colony.colour = numpy.copy(nearest_imperialist.colour)
                 colony.vassals = nearest_imperialist.vassals
+                colony.vassals.append(nearest_imperialist)
                 nearest_imperialist.vassal_of_empire = colony
                 self.empires[nearest_imperialist.index_in_list] = colony
                 colony.index_in_list = numpy.copy(nearest_imperialist.index_in_list)
                 self.colonies[self.colonies.index(colony)] = nearest_imperialist
             else:
                 colony.vassal_of_empire = nearest_imperialist
+                colony.colour = numpy.copy(nearest_imperialist.colour)
+                nearest_imperialist.vassals.append(colony)
 
     def empirial_war(self, eta=0.1):
         total_power = 0
@@ -181,11 +189,22 @@ class Imperialist_competitive_algorithm:
                 self.best_fitness = country.fitness
 
     def print_number_of_vassals(self):
+        print("#####################################################################################")
         for i in range(len(self.empires)):
             temp = "Number of vassals in empire " + str(i) + " is " + str(len(self.empires[i].vassals))
             print(temp)
+        print("#####################################################################################")
         print("Optimal coordinates: " + str(self.best_solution))
         print("Optimal value: " + str(self.best_fitness))
+        print("#####################################################################################")
+
+    def testing(self, name):
+        for i in range(len(self.empires)):
+            for j in range(len(self.empires[i].vassals)):
+                for k in range(3):
+                    if self.empires[i].colour[k] != self.empires[i].vassals[j].colour[k]:
+                        print("chyba" + str(i) + name)
+
 
     def optimize(self, lb: int, ub: int, beta, gamma, eta):
         self.population = [Country(numpy.random.uniform(low=lb, high=ub, size=self.dimension)) for i in
@@ -199,9 +218,13 @@ class Imperialist_competitive_algorithm:
             self.calculate_fitness()
             self.fitness_history.append(self.best_fitness)
             self.assimilation(beta)
+            self.testing("assim")
             self.revolution(gamma)
+            self.testing("rev")
             self.mutiny()
+            self.testing("mut")
             self.empirial_war(eta)
+            self.testing("wae")
             self.print_number_of_vassals()
             print("#####################################################################################")
             if len(self.empires) == 1:
